@@ -101,7 +101,7 @@ const startApplication = async () => {
     // Start HTTP server
     server = app.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
-      logger.info(`Health check available at http://localhost:${PORT}/api/health`);
+      logger.info(`Health check available at http://localhost:${PORT}/health`);
     });
     
     // Handle graceful shutdown

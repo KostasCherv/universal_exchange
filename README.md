@@ -283,7 +283,7 @@ Get list of supported assets.
 }
 ```
 
-### GET /api/health
+### GET /health
 Health check endpoint.
 
 **Response:**
