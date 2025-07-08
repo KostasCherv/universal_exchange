@@ -41,25 +41,22 @@ cancelled
 3. **Partial Fills**: Orders can be partially filled and remain in the order book
 4. **Market Orders**: Market orders are filled immediately at the best available price
 
-## Architecture
+## Architecture Overview
+
+Below is a simple architecture diagram of the backend:
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Client    │    │   API       │    │  Trading    │
-│             │◄──►│   Service   │◄──►│  Engine     │
-└─────────────┘    └─────────────┘    └─────────────┘
-                          │                    │
-                          ▼                    ▼
-                   ┌─────────────┐    ┌─────────────┐
-                   │   SQLite    │    │  Blockchain │
-                   │  Database   │    │  Service    │
-                   └─────────────┘    └─────────────┘
-                          │                    │
-                          ▼                    ▼
-                   ┌─────────────┐    ┌─────────────┐
-                   │   Orders    │    │    Redis    │
-                   │   & Trades  │    │   Pub/Sub   │
-                   └─────────────┘    └─────────────┘
+[Order/Trade API]      [Settlement API]
+      |                     |
+      v                     v
+[TradingEngine]     [BlockchainService]
+      |                /    |
+      |               /     v
+      v              v    [Redis]
+   [DatabaseService]
+         |
+         v
+     [Database]
 ```
 
 ## Quick Start
@@ -622,7 +619,7 @@ The system tracks:
 
 ### Health Checks
 
-Use the `/api/health` endpoint to monitor application health.
+Use the `/health` endpoint to monitor application health.
 
 ## Error Handling
 
@@ -656,15 +653,25 @@ Common error codes:
 - Asynchronous processing for settlements
 - Graceful shutdown handling
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run linting and tests
-6. Submit a pull request
-
 ## License
 
-MIT License 
+MIT License
+
+## Further Improvements
+
+Here are the top 5 most important next steps to enhance the backend:
+
+1. **Add Real-Time Updates**
+   - Use WebSockets or Socket.IO for live order book and trade notifications.
+
+2. **Implement Authentication**
+   - Add user accounts and secure endpoints with JWT-based authentication.
+
+3. **Improve API Pagination & Filtering**
+   - Support pagination and filtering for all list endpoints to handle large data sets.
+
+4. **Add End-to-End (E2E) Tests**
+   - Simulate real user flows to ensure the system works as expected.
+
+5. **Enhance Monitoring & Logging**
+   - Integrate metrics and better logging for easier debugging and system health tracking. 
