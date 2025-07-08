@@ -47,11 +47,54 @@ export class DatabaseService {
       )
     `);
 
+    // Create orders table
+    await this.db.exec(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id TEXT PRIMARY KEY,
+        address TEXT NOT NULL,
+        asset TEXT NOT NULL,
+        side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+        amount REAL NOT NULL,
+        remaining_amount REAL NOT NULL,
+        price REAL NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('limit', 'market')),
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create trades table
+    await this.db.exec(`
+      CREATE TABLE IF NOT EXISTS trades (
+        id TEXT PRIMARY KEY,
+        buy_order_id TEXT NOT NULL,
+        sell_order_id TEXT NOT NULL,
+        asset TEXT NOT NULL,
+        amount REAL NOT NULL,
+        price REAL NOT NULL,
+        buyer_address TEXT NOT NULL,
+        seller_address TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (buy_order_id) REFERENCES orders(id),
+        FOREIGN KEY (sell_order_id) REFERENCES orders(id)
+      )
+    `);
+
     // Create indexes for better performance
     await this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_settlements_status ON settlements(status);
       CREATE INDEX IF NOT EXISTS idx_settlements_asset ON settlements(asset);
       CREATE INDEX IF NOT EXISTS idx_settlements_created_at ON settlements(created_at);
+      CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+      CREATE INDEX IF NOT EXISTS idx_orders_asset ON orders(asset);
+      CREATE INDEX IF NOT EXISTS idx_orders_side ON orders(side);
+      CREATE INDEX IF NOT EXISTS idx_orders_price ON orders(price);
+      CREATE INDEX IF NOT EXISTS idx_orders_address ON orders(address);
+      CREATE INDEX IF NOT EXISTS idx_trades_asset ON trades(asset);
+      CREATE INDEX IF NOT EXISTS idx_trades_buyer ON trades(buyer_address);
+      CREATE INDEX IF NOT EXISTS idx_trades_seller ON trades(seller_address);
+      CREATE INDEX IF NOT EXISTS idx_trades_created_at ON trades(created_at);
     `);
 
     logger.info('Database tables created successfully');
@@ -251,6 +294,214 @@ export class DatabaseService {
     );
 
     return results || [];
+  }
+
+  // Order management methods
+  async createOrder(order: {
+    id: string;
+    address: string;
+    asset: string;
+    side: 'buy' | 'sell';
+    amount: number;
+    price: number;
+    type: 'limit' | 'market';
+  }): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.run(
+      'INSERT INTO orders (id, address, asset, side, amount, remaining_amount, price, type, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [order.id, order.address, order.asset, order.side, order.amount, order.amount, order.price, order.type, 'pending']
+    );
+  }
+
+  async getOrders(address?: string, status?: string): Promise<Array<{
+    id: string;
+    address: string;
+    asset: string;
+    side: 'buy' | 'sell';
+    amount: number;
+    remainingAmount: number;
+    price: number;
+    type: 'limit' | 'market';
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  }>> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    let query = 'SELECT id, address, asset, side, amount, remaining_amount as remainingAmount, price, type, status, created_at as createdAt, updated_at as updatedAt FROM orders';
+    const params: string[] = [];
+    const conditions: string[] = [];
+
+    if (address) {
+      conditions.push('address = ?');
+      params.push(address);
+    }
+
+    if (status) {
+      conditions.push('status = ?');
+      params.push(status);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    return await this.db.all(query, params);
+  }
+
+  async getOrderById(id: string): Promise<{
+    id: string;
+    address: string;
+    asset: string;
+    side: 'buy' | 'sell';
+    amount: number;
+    remainingAmount: number;
+    price: number;
+    type: 'limit' | 'market';
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = await this.db.get(
+      'SELECT id, address, asset, side, amount, remaining_amount as remainingAmount, price, type, status, created_at as createdAt, updated_at as updatedAt FROM orders WHERE id = ?',
+      [id]
+    );
+
+    return result || null;
+  }
+
+  async updateOrderStatus(id: string, status: string): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.run(
+      'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [status, id]
+    );
+  }
+
+  async cancelOrder(id: string): Promise<boolean> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Check if order exists and is cancellable
+    const order = await this.db.get(
+      'SELECT status FROM orders WHERE id = ?',
+      [id]
+    );
+
+    if (!order) {
+      return false; // Order not found
+    }
+
+    // Only allow cancellation of pending or partially_filled orders
+    if (order.status !== 'pending' && order.status !== 'partially_filled') {
+      return false; // Order cannot be cancelled
+    }
+
+    // Update order status to cancelled
+    await this.db.run(
+      'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      ['cancelled', id]
+    );
+
+    return true; // Order cancelled successfully
+  }
+
+  async updateOrderRemainingAmount(id: string, remainingAmount: number): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.run(
+      'UPDATE orders SET remaining_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [remainingAmount, id]
+    );
+  }
+
+  async getOrderBook(asset: string): Promise<{
+    bids: Array<{ price: number; totalAmount: number; orderCount: number }>;
+    asks: Array<{ price: number; totalAmount: number; orderCount: number }>;
+  }> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get bids (buy orders) - highest price first
+    const bids = await this.db.all(`
+      SELECT price, SUM(remaining_amount) as totalAmount, COUNT(*) as orderCount
+      FROM orders 
+      WHERE asset = ? AND side = 'buy' AND status = 'pending'
+      GROUP BY price 
+      ORDER BY price DESC
+      LIMIT 10
+    `, [asset]);
+
+    // Get asks (sell orders) - lowest price first
+    const asks = await this.db.all(`
+      SELECT price, SUM(remaining_amount) as totalAmount, COUNT(*) as orderCount
+      FROM orders 
+      WHERE asset = ? AND side = 'sell' AND status = 'pending'
+      GROUP BY price 
+      ORDER BY price ASC
+      LIMIT 10
+    `, [asset]);
+
+    return { bids, asks };
+  }
+
+  // Trade management methods
+  async createTrade(trade: {
+    id: string;
+    buyOrderId: string;
+    sellOrderId: string;
+    asset: string;
+    amount: number;
+    price: number;
+    buyerAddress: string;
+    sellerAddress: string;
+  }): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    await this.db.run(
+      'INSERT INTO trades (id, buy_order_id, sell_order_id, asset, amount, price, buyer_address, seller_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [trade.id, trade.buyOrderId, trade.sellOrderId, trade.asset, trade.amount, trade.price, trade.buyerAddress, trade.sellerAddress]
+    );
+  }
+
+  async getTrades(asset?: string, address?: string): Promise<Array<{
+    id: string;
+    buyOrderId: string;
+    sellOrderId: string;
+    asset: string;
+    amount: number;
+    price: number;
+    buyerAddress: string;
+    sellerAddress: string;
+    createdAt: string;
+  }>> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    let query = 'SELECT id, buy_order_id as buyOrderId, sell_order_id as sellOrderId, asset, amount, price, buyer_address as buyerAddress, seller_address as sellerAddress, created_at as createdAt FROM trades';
+    const params: string[] = [];
+    const conditions: string[] = [];
+
+    if (asset) {
+      conditions.push('asset = ?');
+      params.push(asset);
+    }
+
+    if (address) {
+      conditions.push('(buyer_address = ? OR seller_address = ?)');
+      params.push(address, address);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT 100';
+
+    return await this.db.all(query, params);
   }
 
   async close(): Promise<void> {

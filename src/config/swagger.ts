@@ -133,6 +133,120 @@ const options = {
             message: { type: 'string' },
             statusCode: { type: 'number' }
           }
+        },
+        OrderRequest: {
+          type: 'object',
+          required: ['address', 'asset', 'side', 'amount', 'price', 'type'],
+          properties: {
+            address: {
+              type: 'string',
+              description: 'Ethereum address of the order creator',
+              example: '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6'
+            },
+            asset: {
+              type: 'string',
+              description: 'Asset symbol to trade',
+              example: 'ETH'
+            },
+            side: {
+              type: 'string',
+              enum: ['buy', 'sell'],
+              description: 'Order side'
+            },
+            amount: {
+              type: 'number',
+              description: 'Order amount',
+              example: 1.5
+            },
+            price: {
+              type: 'number',
+              description: 'Order price',
+              example: 2000
+            },
+            type: {
+              type: 'string',
+              enum: ['limit', 'market'],
+              description: 'Order type'
+            }
+          }
+        },
+        OrderResponse: {
+          type: 'object',
+          properties: {
+            orderId: { type: 'string' },
+            status: { type: 'string' },
+            address: { type: 'string' },
+            asset: { type: 'string' },
+            side: { type: 'string' },
+            amount: { type: 'number' },
+            price: { type: 'number' },
+            type: { type: 'string' }
+          }
+        },
+        Order: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            address: { type: 'string' },
+            asset: { type: 'string' },
+            side: { type: 'string' },
+            amount: { type: 'number' },
+            remainingAmount: { type: 'number' },
+            price: { type: 'number' },
+            type: { type: 'string' },
+            status: { type: 'string' },
+            createdAt: { type: 'string' },
+            updatedAt: { type: 'string' }
+          }
+        },
+        OrderBookLevel: {
+          type: 'object',
+          properties: {
+            price: { type: 'number' },
+            totalAmount: { type: 'number' },
+            orderCount: { type: 'number' }
+          }
+        },
+        OrderBook: {
+          type: 'object',
+          properties: {
+            asset: { type: 'string' },
+            bids: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/OrderBookLevel' }
+            },
+            asks: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/OrderBookLevel' }
+            },
+            timestamp: { type: 'string' }
+          }
+        },
+        Trade: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            buyOrderId: { type: 'string' },
+            sellOrderId: { type: 'string' },
+            asset: { type: 'string' },
+            amount: { type: 'number' },
+            price: { type: 'number' },
+            buyerAddress: { type: 'string' },
+            sellerAddress: { type: 'string' },
+            timestamp: { type: 'string' }
+          }
+        },
+        TradeResponse: {
+          type: 'object',
+          properties: {
+            tradeId: { type: 'string' },
+            orderId: { type: 'string' },
+            trades: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Trade' }
+            },
+            remainingAmount: { type: 'number' }
+          }
         }
       }
     }

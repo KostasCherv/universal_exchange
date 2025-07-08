@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SettlementRequest } from '../types';
+import { SettlementRequest, OrderRequest } from '../types';
 
 // Validation schema for settlement requests
 export const settlementRequestSchema = z.object({
@@ -54,4 +54,18 @@ export const isValidAddress = (address: string): boolean => {
 export const isValidAsset = (asset: string): boolean => {
   // Basic check for asset symbols (3-10 alphanumeric characters)
   return /^[A-Z0-9]{3,10}$/.test(asset);
+};
+
+// Order validation schemas
+export const orderRequestSchema = z.object({
+  address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
+  asset: z.string().regex(/^[A-Z]{3,10}$/, 'Invalid asset format'),
+  side: z.enum(['buy', 'sell'], { errorMap: () => ({ message: 'Side must be either "buy" or "sell"' }) }),
+  amount: z.number().positive('Amount must be positive'),
+  price: z.number().positive('Price must be positive'),
+  type: z.enum(['limit', 'market'], { errorMap: () => ({ message: 'Type must be either "limit" or "market"' }) })
+});
+
+export const validateOrderRequest = (data: unknown): OrderRequest => {
+  return orderRequestSchema.parse(data);
 }; 
