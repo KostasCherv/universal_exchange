@@ -1,10 +1,12 @@
-# uAsset Settlement Backend System
+# uAsset Exchange Backend System
 
-A backend system that simulates a blockchain settlement engine for multiple uAssets. The system provides a REST API for initiating settlements and querying balances, and uses a simulated blockchain service to emit and confirm events.
+A comprehensive backend system for a uAsset exchange platform that provides settlement, order management, and trading functionality. The system includes a REST API for settlements, orders, trades, and balance queries, with a simulated blockchain service and real-time trading engine.
 
 ## Features
 
-- **REST API** for settlement operations and balance queries
+- **REST API** for settlement operations, order management, and balance queries
+- **Trading Engine** with order matching and trade execution
+- **Order Management** with limit/market orders and cancellation
 - **Simulated Blockchain Service** with configurable confirmation delays
 - **Redis Pub/Sub** for asynchronous event handling
 - **SQLite Database** for data persistence
@@ -12,19 +14,51 @@ A backend system that simulates a blockchain settlement engine for multiple uAss
 - **Input Validation** using Zod schemas
 - **TypeScript** for type safety
 - **Docker Support** for containerization
+- **Swagger Documentation** for API exploration
+
+## Trading Engine
+
+The system includes a sophisticated trading engine that handles:
+
+- **Order Matching**: Automatically matches buy and sell orders based on price and time priority
+- **Trade Execution**: Executes trades and updates user balances in real-time
+- **Order Types**: Supports both limit and market orders
+- **Partial Fills**: Handles partial order fills when matching orders have different amounts
+- **Price Discovery**: Uses time-priority for price determination when orders match
+
+### Order Status Flow
+
+```
+pending → partially_filled → filled
+    ↓
+cancelled
+```
+
+### Order Matching Logic
+
+1. **Price Priority**: Orders are matched by best price first
+2. **Time Priority**: Within the same price level, earlier orders are filled first
+3. **Partial Fills**: Orders can be partially filled and remain in the order book
+4. **Market Orders**: Market orders are filled immediately at the best available price
 
 ## Architecture
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Client    │    │   API       │    │  Blockchain │
-│             │◄──►│   Service   │◄──►│  Service    │
+│   Client    │    │   API       │    │  Trading    │
+│             │◄──►│   Service   │◄──►│  Engine     │
 └─────────────┘    └─────────────┘    └─────────────┘
                           │                    │
                           ▼                    ▼
                    ┌─────────────┐    ┌─────────────┐
-                   │   SQLite    │    │    Redis    │
-                   │  Database   │    │   Pub/Sub   │
+                   │   SQLite    │    │  Blockchain │
+                   │  Database   │    │  Service    │
+                   └─────────────┘    └─────────────┘
+                          │                    │
+                          ▼                    ▼
+                   ┌─────────────┐    ┌─────────────┐
+                   │   Orders    │    │    Redis    │
+                   │   & Trades  │    │   Pub/Sub   │
                    └─────────────┘    └─────────────┘
 ```
 
@@ -260,6 +294,190 @@ Health check endpoint.
 }
 ```
 
+## Order Management API
+
+### POST /api/orders
+Create a new order (limit or market).
+
+**Request Body:**
+```json
+{
+  "address": "0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b6",
+  "asset": "ETH",
+  "side": "buy",
+  "amount": 1.5,
+  "price": 2000,
+  "type": "limit"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "tradeId": "trade-1234567890",
+    "orderId": "order-1234567890",
+    "trades": [],
+    "remainingAmount": 1.5
+  }
+}
+```
+
+### GET /api/orders
+Get orders with optional filters.
+
+**Query Parameters:**
+- `address` (optional): Filter by Ethereum address
+- `status` (optional): Filter by order status (pending, filled, cancelled, etc.)
+
+**Example:**
+```
+GET /api/orders?address=0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b6&status=pending
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "order-1234567890",
+      "address": "0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b6",
+      "asset": "ETH",
+      "side": "buy",
+      "amount": 1.5,
+      "remainingAmount": 1.5,
+      "price": 2000,
+      "type": "limit",
+      "status": "pending",
+      "createdAt": "2024-01-01T12:00:00Z",
+      "updatedAt": "2024-01-01T12:00:00Z"
+    }
+  ]
+}
+```
+
+### GET /api/orders/:id
+Get a specific order by ID.
+
+**Example:**
+```
+GET /api/orders/order-1234567890
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "order-1234567890",
+    "address": "0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b6",
+    "asset": "ETH",
+    "side": "buy",
+    "amount": 1.5,
+    "remainingAmount": 1.5,
+    "price": 2000,
+    "type": "limit",
+    "status": "pending",
+    "createdAt": "2024-01-01T12:00:00Z",
+    "updatedAt": "2024-01-01T12:00:00Z"
+  }
+}
+```
+
+### POST /api/orders/:id/cancel
+Cancel an order.
+
+**Example:**
+```
+POST /api/orders/order-1234567890/cancel
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Order cancelled successfully"
+}
+```
+
+### GET /api/orders/book/:asset
+Get order book for a specific asset.
+
+**Example:**
+```
+GET /api/orders/book/ETH
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "asset": "ETH",
+    "bids": [
+      {
+        "price": 2000,
+        "totalAmount": 2.5,
+        "orderCount": 3
+      },
+      {
+        "price": 1999,
+        "totalAmount": 1.0,
+        "orderCount": 1
+      }
+    ],
+    "asks": [
+      {
+        "price": 2001,
+        "totalAmount": 1.5,
+        "orderCount": 2
+      }
+    ],
+    "timestamp": "2024-01-01T12:00:00Z"
+  }
+}
+```
+
+## Trading API
+
+### GET /api/trades
+Get trade history with optional filters.
+
+**Query Parameters:**
+- `asset` (optional): Filter by asset symbol
+- `address` (optional): Filter by Ethereum address (buyer or seller)
+
+**Example:**
+```
+GET /api/trades?asset=ETH&address=0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b6
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "trade-1234567890",
+      "buyOrderId": "order-buy-123",
+      "sellOrderId": "order-sell-456",
+      "asset": "ETH",
+      "amount": 1.0,
+      "price": 2000,
+      "buyerAddress": "0x742d35cc6634c0532925a3b8d4c9db96c4b4d8b6",
+      "sellerAddress": "0x8ba1f109551bd432803012645aac136c772c3e3c",
+      "createdAt": "2024-01-01T12:00:00Z"
+    }
+  ]
+}
+```
+
+## API Documentation
+
+Interactive API documentation is available at `/api-docs` when the server is running.
+
 ## Configuration
 
 ### Environment Variables
@@ -285,7 +503,11 @@ src/
 │       ├── settlements.ts # Settlement endpoints
 │       ├── balances.ts    # Balance endpoints
 │       ├── assets.ts      # Asset endpoints
+│       ├── orders.ts      # Order management endpoints
+│       ├── trades.ts      # Trade history endpoints
 │       └── health.ts      # Health check endpoint
+├── config/
+│   └── swagger.ts         # Swagger configuration
 ├── db/
 │   └── schema.ts          # Database schema and operations
 ├── middleware/
@@ -293,7 +515,8 @@ src/
 ├── pubsub/
 │   └── redis.ts           # Redis Pub/Sub service
 ├── services/
-│   └── blockchain.ts      # Simulated blockchain service
+│   ├── blockchain.ts      # Simulated blockchain service
+│   └── trading-engine.ts  # Trading engine with order matching
 ├── types/
 │   ├── index.ts           # TypeScript interfaces
 │   └── express.d.ts       # Express type extensions
@@ -316,12 +539,22 @@ src/
 ### Testing
 
 ```bash
-# Run tests
+# Run all tests
 npm test
+
+# Run specific test suites
+npm test -- src/api/routes/__tests__/orders.test.ts
+npm test -- src/services/__tests__/trading-engine.test.ts
 
 # Run tests in watch mode
 npm run test:watch
 ```
+
+The test suite includes:
+- Route tests for all API endpoints
+- Trading engine tests for order matching logic
+- Database operation tests
+- Validation and error handling tests
 
 ## Docker
 
