@@ -3,7 +3,36 @@ import { addTraceContext } from '../../middleware';
 
 const router = Router();
 
-// GET /assets - Get supported assets
+/**
+ * @swagger
+ * /assets:
+ *   get:
+ *     summary: Get supported assets
+ *     description: Retrieve list of all supported assets in the system
+ *     tags: [Assets]
+ *     responses:
+ *       200:
+ *         description: List of supported assets
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 assets:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Asset'
+ *                 total:
+ *                   type: number
+ *                 timestamp:
+ *                   type: string
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/assets', addTraceContext, async (req: Request, res: Response, next) => {
   const logger = req.logger!;
   

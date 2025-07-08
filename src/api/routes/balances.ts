@@ -11,7 +11,46 @@ import { addTraceContext } from '../../middleware';
 
 const router = Router();
 
-// GET /balance/:address - Get balance for an address
+/**
+ * @swagger
+ * /balance/{address}:
+ *   get:
+ *     summary: Get balance for address and asset
+ *     description: Retrieve the balance of a specific asset for a given address
+ *     tags: [Balances]
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Ethereum address
+ *       - in: query
+ *         name: asset
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Asset symbol (USDC, USDT, ETH, BTC)
+ *     responses:
+ *       200:
+ *         description: Balance information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Balance'
+ *       400:
+ *         description: Bad request - invalid address or asset
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/balance/:address', addTraceContext, async (req: Request, res: Response, next) => {
   const logger = req.logger!;
   
@@ -74,7 +113,40 @@ router.get('/balance/:address', addTraceContext, async (req: Request, res: Respo
   }
 });
 
-// GET /balance/:address/all - Get all balances for an address
+/**
+ * @swagger
+ * /balance/{address}/all:
+ *   get:
+ *     summary: Get all balances for address
+ *     description: Retrieve all asset balances for a given address
+ *     tags: [Balances]
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Ethereum address
+ *     responses:
+ *       200:
+ *         description: All balances for the address
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AllBalances'
+ *       400:
+ *         description: Bad request - invalid address
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/balance/:address/all', addTraceContext, async (req: Request, res: Response, next) => {
   const logger = req.logger!;
   

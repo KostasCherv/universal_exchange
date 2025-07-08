@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger';
 import { router, errorHandler } from './api/routes';
 import { dbService } from './db/schema';
 import { redisService } from './pubsub/redis';
@@ -31,8 +33,21 @@ app.use((req, res, next) => {
   next();
 });
 
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
+
 // Routes
 app.use('/api', router);
+
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Redirect to swagger documentation
+app.get('/', (_req, res) => {
+  res.redirect('/api-docs');
+});
 
 // Error handling
 app.use(errorHandler);

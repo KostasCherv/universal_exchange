@@ -13,7 +13,39 @@ import { addTraceContext } from '../../middleware';
 
 const router = Router();
 
-// POST /settle - Create a new settlement
+/**
+ * @swagger
+ * /settle:
+ *   post:
+ *     summary: Create a new settlement
+ *     description: Initiate a new uAsset settlement between two addresses
+ *     tags: [Settlements]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SettlementRequest'
+ *     responses:
+ *       202:
+ *         description: Settlement created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SettlementResponse'
+ *       400:
+ *         description: Bad request - validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/settle', addTraceContext, async (req: Request, res: Response, next) => {
   const logger = req.logger!;
   
@@ -105,7 +137,29 @@ router.post('/settle', addTraceContext, async (req: Request, res: Response, next
   }
 });
 
-// GET /settlements - Get all settlements
+/**
+ * @swagger
+ * /settlements:
+ *   get:
+ *     summary: Get all settlements
+ *     description: Retrieve all settlements from the system
+ *     tags: [Settlements]
+ *     responses:
+ *       200:
+ *         description: List of all settlements
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Settlement'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/settlements', addTraceContext, async (req: Request, res: Response, next) => {
   const logger = req.logger!;
   
@@ -127,7 +181,51 @@ router.get('/settlements', addTraceContext, async (req: Request, res: Response, 
   }
 });
 
-// GET /settlements/address/:address - Get settlements for a specific address
+/**
+ * @swagger
+ * /settlements/address/{address}:
+ *   get:
+ *     summary: Get settlements by address
+ *     description: Retrieve all settlements for a specific Ethereum address
+ *     tags: [Settlements]
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Ethereum address to get settlements for
+ *     responses:
+ *       200:
+ *         description: Settlements for the address
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 address:
+ *                   type: string
+ *                 settlements:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Settlement'
+ *                 total:
+ *                   type: number
+ *                 timestamp:
+ *                   type: string
+ *       400:
+ *         description: Bad request - invalid address
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/settlements/address/:address', addTraceContext, async (req: Request, res: Response, next) => {
   const logger = req.logger!;
   
@@ -187,7 +285,40 @@ router.get('/settlements/address/:address', addTraceContext, async (req: Request
   }
 });
 
-// GET /settlements/:id - Get settlement by ID
+/**
+ * @swagger
+ * /settlements/{id}:
+ *   get:
+ *     summary: Get settlement by ID
+ *     description: Retrieve a specific settlement by its ID
+ *     tags: [Settlements]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Settlement ID
+ *     responses:
+ *       200:
+ *         description: Settlement details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Settlement'
+ *       404:
+ *         description: Settlement not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/settlements/:id', addTraceContext, async (req: Request, res: Response, next) => {
   const logger = req.logger!;
   
